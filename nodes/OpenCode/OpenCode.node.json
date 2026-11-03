@@ -1,0 +1,18 @@
+{
+	"node": "n8n-nodes-opencode-v2.openCode",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Development"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://github.com/aorizondo/n8n-nodes-opencode-v2#credentials"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/aorizondo/n8n-nodes-opencode-v2#readme"
+			}
+		]
+	}
+}
