@@ -25,10 +25,10 @@ export const directoryField = (show: Record<string, string[]>): INodeProperties 
 	displayName: 'Working Directory',
 	name: 'directory',
 	type: 'string',
-	default: '/workspace',
+	default: '/tmp',
 	required: true,
 	description:
-		'Absolute path on the OpenCode server where the session works. Plugins configured for that folder run too; a dedicated folder keeps chatbot sessions apart from other work.',
+		'Absolute path on the OpenCode server where the session works. Plugins of that folder run before every message is accepted (memory plugins can add tens of seconds), so chatbots work best in a folder with no project plugins.',
 	displayOptions: { show },
 });
 

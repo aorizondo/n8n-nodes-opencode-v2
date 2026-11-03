@@ -58,6 +58,7 @@ export async function runTurn(
 	const timeoutMs = Math.max(5, options.timeout ?? 300) * 1000;
 	const ensured = await ensureSession(ctx, session, itemIndex);
 	const sessionId = ensured.session.id;
+	const sentAt = Date.now();
 	const admitted = await sendPrompt(ctx, sessionId, { text, delivery: options.delivery }, itemIndex, timeoutMs).catch(
 		(error) => {
 			if (!isTimeoutError(error)) throw error;
@@ -67,7 +68,7 @@ export async function runTurn(
 				{
 					itemIndex,
 					description:
-						'Plugins loaded for the working directory run before the message is accepted. Use a directory without heavy plugins or raise the timeout.',
+						'Plugins loaded for the working directory (for example memory plugins) run before the message is accepted. Use a working directory without project plugins, or raise the timeout.',
 				},
 			);
 		},
@@ -76,6 +77,9 @@ export async function runTurn(
 		sessionId,
 		messageId: admitted.id,
 		agentSwitched: ensured.agentSwitched,
+		// Time OpenCode took to accept the message. High values come from the folder's plugins (prompt hooks run
+		// before admission), not from the model.
+		admittedMs: Date.now() - sentAt,
 	};
 	if (!wait) return { ...base, status: 'running' };
 

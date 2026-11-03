@@ -94,6 +94,8 @@ describe("Chat \u2192 Send Message", () => {
     assert.equal(result.status, "succeeded");
     assert.equal(result.sessionId, "ses_n8n_chat-1");
     assert.equal(result.conversationKey, "chat-1");
+    assert.equal(typeof result.admittedMs, "number");
+    assert.ok(result.admittedMs >= 0);
   });
   it("does not switch agent or patch permissions when they already match", async () => {
     const { presetRules } = await import("../dist/nodes/OpenCode/helpers/permissions.js");
@@ -157,5 +159,14 @@ describe("waitForTurn", () => {
     assert.equal(outcome.timedOut, false);
     assert.equal(outcome.turn?.completed, true);
     assert.equal(calls.filter((call) => call.url.endsWith("/wait")).length, 1);
+  });
+});
+
+describe("node description", () => {
+  it("defaults the working directory to a folder that exists everywhere", async () => {
+    const { OpenCode } = await import("../dist/nodes/OpenCode/OpenCode.node.js");
+    const directories = new OpenCode().description.properties.filter((p) => p.name === "directory");
+    assert.ok(directories.length > 0);
+    for (const property of directories) assert.equal(property.default, "/tmp");
   });
 });

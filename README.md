@@ -57,7 +57,7 @@ Chat Trigger ──► OpenCode V2 (Chat → Send Message) ──► (reply goes
 2. Add **OpenCode V2**, resource **Chat**, operation **Send Message**. The defaults already match the Chat Trigger:
    - **Conversation Key**: `{{ $json.sessionId }}`
    - **Message**: `{{ $json.chatInput }}`
-3. Set **Working Directory** to a folder on the OpenCode server, e.g. `/srv/chatbot`.
+3. Set **Working Directory** to a folder on the OpenCode server that has no project plugins (the default `/tmp` works everywhere; see [Slow replies](#slow-replies-the-message-takes-a-long-time-to-be-accepted)).
 4. For a Chat Trigger in "When last node finishes" mode, the reply is the `reply` field. Add a **Set** node that maps `output` = `{{ $json.reply }}`.
 
 **How conversations map to sessions.** The node derives the session id from the conversation key (`chat-42` → `ses_n8n_chat-42`). OpenCode returns the existing session when it receives an id it already knows, so the same key always continues the same session and nothing is stored in n8n. Any other trigger works the same way: use a Telegram chat id, a WhatsApp number or a webhook field as the key. A full session id (`ses_…`) is used as-is.
@@ -75,6 +75,7 @@ The history lives in OpenCode, which also compacts it when it grows, so the work
   "agent": "plan",
   "model": "opencode/big-pickle",
   "agentSwitched": true,
+  "admittedMs": 820,
   "status": "succeeded",
   "finish": "stop",
   "toolsUsed": [{ "name": "read", "status": "completed" }],
@@ -83,7 +84,7 @@ The history lives in OpenCode, which also compacts it when it grows, so the work
 }
 ```
 
-`status` is `succeeded`, `failed`, `interrupted`, `timeout` or `running`. On failure `error` holds the reason.
+`status` is `succeeded`, `failed`, `interrupted`, `timeout` or `running`. On failure `error` holds the reason. `admittedMs` is how long OpenCode took to accept the message before the agent started.
 
 **Reset** a conversation with **Chat → Reset Conversation**: the next message starts a new session. **Chat → Get History** returns the user and assistant messages.
 
@@ -176,8 +177,21 @@ N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
 
 ## Troubleshooting
 
-- **Sending a message takes tens of seconds before the agent starts.** Plugins configured for the working directory run their hooks before OpenCode accepts the message. Use a working directory without heavy plugins for chatbots (each folder loads its own `opencode.json`).
+### Slow replies: the message takes a long time to be accepted
+
+Check `admittedMs` in the output. OpenCode runs the **prompt hooks of every plugin loaded for the working directory before it accepts a message**, and the node can only wait. Memory plugins are the usual cause: the Hindsight coding-agents plugin, for example, runs a `reflect` call against its server on the first turns of every session (up to its `HINDSIGHT_REFLECT_TIMEOUT_MS`, plus a fallback). With a slow or failing memory server that adds close to a minute per message.
+
+Keeping OpenCode "warm" does not help: the delay is per message and per new session, not a cold start. What helps:
+
+- **Use a working directory without project plugins** (each folder loads its own `opencode.json` and `.opencode/`). Measured on OpenCode 2.1.4: ~1 s to accept a message in a plugin-free folder, ~53 s in a folder whose memory plugin timed out.
+- Or tune the plugin on the server: for Hindsight, `HINDSIGHT_AUTO_INJECT=none` (no automatic reflect) or a lower `HINDSIGHT_REFLECT_TIMEOUT_MS`.
+
+OpenCode also unloads a folder after 60 minutes without session activity. Reloading it costs a few seconds on the next message, far less than plugin hooks.
+
+### Other problems
+
 - **`SessionNotFoundError` on Get Result / Interrupt.** Pass a full session id (`ses_…`), not the conversation key.
+- **`LocationNotFoundError`.** The working directory does not exist on the OpenCode server. Create it there, or use one that exists.
 - **Requests cut after ~60 s.** A reverse proxy in front of OpenCode is closing long requests. Point the credential at the internal URL.
 
 ## Development
